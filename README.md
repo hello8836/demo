@@ -903,7 +903,81 @@ Successfully implemented and tested row-level and statement-level database trigg
 ## SQL / Implementation Code
 
 ```sql
+-- Step 1: Create the Database
+CREATE DATABASE company_db;
+USE company_db;
 
+-- Step 2: Create the Employees Table
+CREATE TABLE employees (
+    emp_id INT PRIMARY KEY,
+    name VARCHAR(50),
+    salary DECIMAL(10,2),
+    dept VARCHAR(30)
+);
+
+-- Step 3: Create the Audit Log Table
+CREATE TABLE audit_log (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    emp_id INT NULL,
+    action VARCHAR(100),
+    log_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Step 4: Insert Sample Data
+INSERT INTO employees VALUES
+(1, 'Alice', 50000, 'HR'),
+(2, 'Bob', 60000, 'IT');
+
+-- Step 5: Create a Row-Level Trigger for Salary Updates
+DELIMITER //
+
+CREATE TRIGGER trg_row_salary_update
+AFTER UPDATE ON employees
+FOR EACH ROW
+BEGIN
+    IF OLD.salary <> NEW.salary THEN
+        INSERT INTO audit_log (emp_id, action)
+        VALUES (NEW.emp_id, 'Salary updated');
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Step 6: Create a Row-Level Trigger for General Updates
+DELIMITER //
+
+CREATE TRIGGER trg_row_statement_update
+AFTER UPDATE ON employees
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_log (emp_id, action)
+    VALUES (NEW.emp_id, 'Employee record updated');
+END //
+
+DELIMITER ;
+
+-- Step 7: Test the Triggers
+
+-- Update Alice's salary
+UPDATE employees
+SET salary = salary + 1000
+WHERE emp_id = 1;
+
+-- Update Bob's department
+UPDATE employees
+SET dept = 'Finance'
+WHERE emp_id = 2;
+
+-- Update multiple employees
+UPDATE employees
+SET salary = salary + 500
+WHERE dept IN ('HR', 'Finance');
+
+-- Step 8: Display Employee Records
+SELECT * FROM employees;
+
+-- Step 9: Display Audit Logs
+SELECT * FROM audit_log;
 ```
 
 ---
@@ -941,8 +1015,73 @@ The `use company` command selects the company database, creating it when data is
 
 Successfully created a MongoDB database and implemented CRUD operations on employee documents, demonstrating document storage, data retrieval, conditional updates, and deletion using MongoDB Shell commands.
 
+
+mongosh experiment10.js
+
 ## MongoDB / Implementation Code
 
 ```javascript
+db = db.getSiblingDB("company");
+
+if (!db.getCollectionNames().includes("employees")) {
+    db.createCollection("employees");
+}
+
+db.employees.deleteMany({});
+
+db.employees.insertMany([
+    {
+        emp_id: 101,
+        name: "Alice",
+        department: "HR",
+        salary: 50000
+    },
+    {
+        emp_id: 102,
+        name: "Bob",
+        department: "IT",
+        salary: 60000
+    },
+    {
+        emp_id: 103,
+        name: "Charlie",
+        department: "Finance",
+        salary: 55000
+    }
+]);
+
+print("\n--- CREATE: All inserted employees ---");
+db.employees.find().forEach(printjson);
+
+print("\n--- READ: IT department employees ---");
+db.employees.find({ department: "IT" }).forEach(printjson);
+
+print("\n--- READ: Employee names and salaries ---");
+db.employees.find(
+    {},
+    { _id: 0, name: 1, salary: 1 }
+).forEach(printjson);
+
+db.employees.updateOne(
+    { emp_id: 103 },
+    { $set: { salary: 58000 } }
+);
+
+db.employees.updateMany(
+    { department: "IT" },
+    { $inc: { salary: 2000 } }
+);
+
+print("\n--- UPDATE: Employees after salary changes ---");
+db.employees.find().forEach(printjson);
+
+db.employees.deleteOne({ emp_id: 101 });
+
+db.employees.deleteMany({ department: "HR" });
+
+print("\n--- DELETE: Remaining employees ---");
+db.employees.find().forEach(printjson);
+
+print("\nExperiment completed successfully.");
 
 ```
