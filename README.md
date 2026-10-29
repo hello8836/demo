@@ -860,7 +860,129 @@ Successfully created and executed PL/SQL stored procedures and functions to upda
 ## PL/SQL / Implementation Code
 
 ```sql
+SET SERVEROUTPUT ON;
 
+-- STEP 1: Drop existing objects if they exist
+
+BEGIN
+    EXECUTE IMMEDIATE 'DROP PROCEDURE IncreaseSalary';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -4043 THEN
+            RAISE;
+        END IF;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'DROP FUNCTION GetAvgSalary';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -4043 THEN
+            RAISE;
+        END IF;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE employees CASCADE CONSTRAINTS';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -942 THEN
+            RAISE;
+        END IF;
+END;
+/
+
+-- STEP 2: Create employee table
+
+CREATE TABLE employees (
+    emp_id NUMBER PRIMARY KEY,
+    emp_name VARCHAR2(50),
+    department_id NUMBER,
+    salary NUMBER(10,2)
+);
+
+-- STEP 3: Insert sample employee records
+
+INSERT INTO employees VALUES (1, 'Amit', 10, 30000);
+INSERT INTO employees VALUES (2, 'Rahul', 10, 40000);
+INSERT INTO employees VALUES (3, 'Priya', 10, 50000);
+INSERT INTO employees VALUES (4, 'Sneha', 20, 35000);
+INSERT INTO employees VALUES (5, 'Rohit', 20, 45000);
+
+COMMIT;
+
+-- STEP 4: Create stored procedure to increase salaries
+
+CREATE OR REPLACE PROCEDURE IncreaseSalary (
+    p_department_id IN NUMBER,
+    p_percentage IN NUMBER
+)
+AS
+BEGIN
+    UPDATE employees
+    SET salary = salary + (salary * p_percentage / 100)
+    WHERE department_id = p_department_id;
+
+    DBMS_OUTPUT.PUT_LINE(
+        'Salary updated for department ' || p_department_id
+    );
+
+    DBMS_OUTPUT.PUT_LINE(
+        'Percentage increase: ' || p_percentage || '%'
+    );
+
+    DBMS_OUTPUT.PUT_LINE(
+        'Employees updated: ' || SQL%ROWCOUNT
+    );
+END;
+/
+
+-- STEP 5: Create function to calculate average salary
+
+CREATE OR REPLACE FUNCTION GetAvgSalary (
+    p_department_id IN NUMBER
+)
+RETURN NUMBER
+AS
+    v_avg_salary NUMBER;
+BEGIN
+    SELECT AVG(salary)
+    INTO v_avg_salary
+    FROM employees
+    WHERE department_id = p_department_id;
+
+    RETURN v_avg_salary;
+END;
+/
+
+-- STEP 6: Execute procedure and function
+
+DECLARE
+    v_average_salary NUMBER;
+BEGIN
+    IncreaseSalary(10, 10);
+
+    v_average_salary := GetAvgSalary(10);
+
+    DBMS_OUTPUT.PUT_LINE(
+        'Average salary of department 10: ' ||
+        TO_CHAR(v_average_salary, 'FM999999990.00')
+    );
+END;
+/
+
+-- STEP 7: Display updated employee records
+
+SELECT * FROM employees ORDER BY emp_id;
+
+-- STEP 8: Display average salary of each department
+
+SELECT department_id, AVG(salary) AS average_salary
+FROM employees
+GROUP BY department_id
+ORDER BY department_id;
 ```
 
 ---
